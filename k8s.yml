@@ -1,0 +1,68 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: computeshare-vnc
+spec:
+  selector:
+    app: computeshare-vnc
+  type: ClusterIP
+  ports:
+    - protocol: TCP
+      name: http
+      port: 80
+      targetPort: 80
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: computeshare-vnc
+  labels:
+    app: computeshare-vnc
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: computeshare-vnc
+  template:
+    metadata:
+      labels:
+        app: computeshare-vnc
+    spec:
+      containers:
+        - name: computeshare-vnc
+          image: hamstershare/computeshare-vnc:${PIPELINE_ID}
+          imagePullPolicy: Always
+          env:
+            - name: TZ
+              value: Asia/Shanghai
+          ports:
+            - containerPort: 80
+              name: http
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+  name: computeshare-vnc
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: nvc.computeshare.newtouch.com
+      http:
+        paths:
+          - backend:
+              service:
+                name: computeshare-vnc
+                port:
+                  number: 80
+            path: /
+            pathType: Prefix
+  tls:
+    - hosts:
+        - vnc.computeshare.newtouch.com
+      secretName: computeshare-vnc-tls
+---
